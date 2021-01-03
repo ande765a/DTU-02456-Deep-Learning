@@ -9,7 +9,7 @@ import numpy as np
 import time
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter("runs/baseline-run3")
+writer = SummaryWriter("runs/subseg")
 
 import matplotlib.pyplot as plt
 
@@ -35,34 +35,36 @@ if __name__ == "__main__":
 	val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=num_workers)
 	test_dataloader = DataLoader(test_dataset, batch_size=1, num_workers=num_workers)
 
-	#model = SubtitleSegmentation(in_channels=3, height=360, width=640).to(device)
+	#model = BaselineModel(in_channels=3, height=360, width=640).to(device)
+	#model.load_state_dict(torch.load("baseline-model-batch_size-8.num_epochs-3-with-has-subtitles.torch", map_location=device), strict=False)
+
+	model = SubtitleSegmentation(in_channels=3, height=360, width=640).to(device)
 	#model.load_state_dict(torch.load("model-600_epochs-has_subtitle.torch", map_location=device), strict=False)
 
-	model = BaselineModel(in_channels=3, height=360, width=640).to(device)
-	model.load_state_dict(torch.load("baseline-model-batch_size-8.num_epochs-3-with-has-subtitles.torch", map_location=device), strict=False)
+	freeze_weights = False
+	if freeze_weights:
+		for param in model.parameters():
+			param.requires_grad = False
 
-
-	for param in model.parameters():
-		param.requires_grad = False
-
-	#model.has_subtitle_conv.weight.requires_grad = True
-	#model.has_subtitle_conv.requires_grad = True
-	model.fc[0].weight.requires_grad = True
-	model.fc[0].bias.requires_grad = True
+		model.has_subtitle_conv.weight.requires_grad = True
+		model.has_subtitle_conv.requires_grad = True
+		#model.fc[0].weight.requires_grad = True
+		#model.fc[0].bias.requires_grad = True
 
 
 	model = nn.DataParallel(model)
 
 	criterion = nn.BCEWithLogitsLoss()
 	# For SubSeg model
-	#optimizer = optim.SGD(model.parameters(), lr=1e-2) #, momentum=0.5) #lr=1e-2, momentum=0.5)
+	optimizer = optim.SGD(model.parameters(), lr=1e-2) #, momentum=0.5) #lr=1e-2, momentum=0.5)
 
-	optimizer = optim.SGD(model.parameters(), lr=1e-3) #, momentum=0.5) #lr=1e-2, momentum=0.5)
+	# For baseline model
+	#optimizer = optim.SGD(model.parameters(), lr=1e-3) #, momentum=0.5) #lr=1e-2, momentum=0.5)
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer)
 
-	num_epochs = 3
-	step = 1
+	num_epochs = 600
 
+	step = 1
 	for epoch in range(num_epochs):
 		# Training
 		train_dataloader_tqdm = tqdm(train_dataloader)
@@ -76,8 +78,9 @@ if __name__ == "__main__":
 
 			pred_mask, pred_has_subtitle = model(image)
 			
-			loss = criterion(pred_has_subtitle, has_subtitle)
-			#loss = criterion(pred_mask, mask)
+			loss = criterion(pred_mask, mask)
+			# For 2nd part of training
+			#loss = criterion(pred_has_subtitle, has_subtitle)
 
 			train_dataloader_tqdm.set_description(f"Epoch: {epoch}, Loss: {loss.item()}")
 			writer.add_scalar("Loss/train", loss.item(), step)
@@ -137,7 +140,7 @@ if __name__ == "__main__":
 	print(f"Mask f1: {np.mean(mask_f1)}")
 
 	# Saving
-	name = f"baseline-model-batch_size-{batch_size}.num_epochs-{num_epochs}-with-has-subtitles.torch"
+	name = f"subseg-batch_size-{batch_size}.num_epochs-{num_epochs}.torch"
 	print(f"Saving: {name}")
 	torch.save(model.module.state_dict(), name)
 

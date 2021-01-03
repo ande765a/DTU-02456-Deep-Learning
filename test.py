@@ -9,12 +9,11 @@ input_width, input_height = (640, 360) # DR Live
 
 if __name__ == "__main__":
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-	#device = torch.device("cpu")
 	model = SubtitleSegmentation(in_channels=3, height=640, width=360).to(device)
-	model.load_state_dict(torch.load("model-600_epochs-has_subtitle.torch", map_location=device))
+	model.load_state_dict(torch.load("subseg-batch_size-8.num_epochs-600.torch", map_location=device))
 	
 	#model = BaselineModel(in_channels=3, height=640, width=360).to(device)
-	#model.load_state_dict(torch.load("baseline-model-batch_size-8.num_epochs-3-with-has-subtitles.torch", map_location=device))
+	#model.load_state_dict(torch.load("baseline-batch_size-8.num_epochs-600.torch", map_location=device))
 
 	image = io.imread("data/sintel/frames/frame128.png")
 	image = transform.resize(image, (height, width))
@@ -31,9 +30,8 @@ if __name__ == "__main__":
 
 	print("Has subtitle!" if has_subtitle > 0.5 else "Does not contain any subtitles....")
 
-
 	# Perform masking
-	mask = (mask > 0.6).float()
+	mask = (mask > 0.5).float()
 	masked = mask * image
 
 	# Convert CHW to CHW
