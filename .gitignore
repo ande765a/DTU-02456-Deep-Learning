@@ -1,11 +1,2 @@
 __pycache__
 .ipynb_checkpoints
-data
-old_data
-logs
-models
-mask.png
-masked.png
-runs
-plots
-test-data
